@@ -13,12 +13,13 @@ import stomp # Can be installed
 
 import camera # Not in use
 
-from comms import *
+from comms import message_controls
 from motors import *
 from sensors import *
 
 #Grab all the config variables
 from config import *
+from sensors.controls import sensorControl
 
 
 #Setup Logging
@@ -40,10 +41,13 @@ def start():
     global conn
     global motors
     global run
-    global s1, s2, s3 #Sensor Global Objects
+    global sensorControl
     global commandQ
     run = True
-   
+
+    ##Start Queues for commands
+    commandQ = Queue.Queue()   
+
     ##Start stomp connection
     logger.info('Starting Stomp')
     conn = stomp.Connection([(host_ip, host_port)]) # Who to connect to
@@ -54,33 +58,17 @@ def start():
     
     ##Setup motors class
     logger.info('Configuring Motors')
-    motor1 = motor_obj(1, servo_mid, servo_dif)
-    motor2 = motor_obj(2, servo_mid, servo_dif)
-    motor3 = motor_obj(3, servo_mid, servo_dif)
-    motor4 = motor_obj(4, servo_mid, servo_dif)
-    motor_objs = [motor1, motor2, motor3, motor4]
-    motor_driver_setup()
-    motors = motor_controls(wheel_base, max_angle, half_length, diff_inc, motor_objs)
+    motors = motor_controls(wheel_base, max_angle, half_length, diff_inc, servo_mid, servo_dif)
     
     
     ##Setup sensor threads 
     if sensors_enabled:
         logger.info('Configuring Sensors')
-        logger.debug('Sensor 1 Being Configured')
-        s1 = sensor_controls(sensors_config[0][0],sensors_config[0][1],sensors_config[0][2],sensors_config[0][3])
-        s1.start()
-        logger.debug('Sensor 2 Being Configured')
-        s2 = sensor_controls(sensors_config[1][0],sensors_config[1][1],sensors_config[1][2],sensors_config[1][3])
-        s2.start()
-        logger.debug('Sensor 3 Being Configured')
-        s3 = sensor_controls(sensors_config[2][0],sensors_config[2][1],sensors_config[2][2],sensors_config[2][3])
-        s3.start()
+        sensorControl(sensorsConfig)
         # Start data collection timer
         st = threading.Timer(sensors_collect, sensors_data_collect)
         st.start()
     
-    ##Start Queues for commands
-    commandQ = Queue.Queue()
     
     ##Loop through other processes
     while run:
@@ -116,7 +104,6 @@ def command_handle(command):
         elif functionName == 'sensor':
             logger.debug('Sensor Command' 
                          + 'Parameters' + str(parametersArray))
-            pass
                 
         elif functionName == 'stop':
             run = False
@@ -134,10 +121,7 @@ def command_handle(command):
         conn.send("Command - Type Error:", destination=queue_log) 
 
 def sensors_data_collect():    
-    message = []
-    message += [s1.collect()]
-    message += [s2.collect()]
-    message += [s3.collect()]
+    message = sensorControl.getAllData(self)
     logger.info('Message Compiled from sensors \n \t' + str(message))
     m = message_controls('sensor_data', message)
     message = m.serialize()

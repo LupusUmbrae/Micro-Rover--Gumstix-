@@ -4,11 +4,14 @@
 ## This class provides all the tools
 ## needed to control the motion of the rover
 import logging
+import motor
+import driver
+
 logger = logging.getLogger('gumstix.motors.controls')
 from math import pi, tan, radians
 
 class motor_controls():
-    def __init__(self, wheelBase, maxAngle, halfLength, increment, motors):
+    def __init__(self, wheelBase, maxAngle, halfLength, increment, servo_mid, servo_dif):
         self.wheelBase = wheelBase
         self.increment = increment
         self.maxAngle = maxAngle
@@ -16,10 +19,15 @@ class motor_controls():
         self.currentDifferential = 0 #start rover in straight line
         self.angle = 0 #start rover in straight line
         logger.debug('Timers configured for PWM')
-        self.motor1 = motors[0] # Front Left
-        self.motor2 = motors[1] # Front Right
-        self.motor3 = motors[2] # Back Left
-        self.motor4 = motors[3] # Back Right
+        
+        self.motor1 = motor(1, servo_mid, servo_dif) # Front Left
+        self.motor2 = motor(2, servo_mid, servo_dif) # Front Right
+        self.motor3 = motor(3, servo_mid, servo_dif) # Back Left
+        self.motor4 = motor(4, servo_mid, servo_dif) # Back Right
+        logger.debug('Motors created')
+        
+        driver.setup_pwm()
+        logger.debug('PWM Setup')
         logger.debug('Motor Settings:' 
                      + '\n\t Wheelbase \t' + str(self.wheelBase) 
                      + '\n\t Increment \t' + str(self.increment) 

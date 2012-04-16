@@ -14,6 +14,7 @@ class motor():
     
     def getSpeed(self, speed):
         value = pwm.read_speed()
+        return value
         
     
     def setSpeed(self, speed):

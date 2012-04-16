@@ -24,6 +24,13 @@ sensors_config = [#number, name, interval, type
            [0, 'sensor3', 0, 'default']
            ]
 
+# Port [number, name, interval, type]
+sensorsConfig = {
+                 0: [0, 'sensor1', 3, 'default'],
+                 1: [0, 'sensor2', 0, 'default'],
+                 2: [0, 'sensor3', 0, 'default']
+                 }
+
 sensors_collect = 9 # Rate to send data back (seconds)
 
 #motors details
@@ -31,7 +38,7 @@ wheel_base = 60
 max_angle = 50
 half_length = 50
 
-servo_dif = 1.0
+servo_dif = 0.5
 servo_mid = 1.5
 
 diff_inc = 10
