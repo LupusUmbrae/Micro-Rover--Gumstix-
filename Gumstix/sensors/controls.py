@@ -9,7 +9,7 @@ class sensorControl:
     def __init__(self, sensorsConfig):
         sensor = sensor.sensor
         self.sensorMap = {}
-        for port, sensorConfig in sensorsConfig:
+        for port, sensorConfig in sensorsConfig.iteritems():
             self.sensorMap[port] = sensor(port, sensorConfig[1], sensorConfig[2])
             
 

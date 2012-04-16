@@ -2,7 +2,8 @@
 import logging # used for logging errors
 import logging.handlers
 
-
+import ConfigParser
+import ast
 
 #import packages
 import threading
@@ -14,25 +15,36 @@ import stomp # Can be installed
 import camera # Not in use
 
 from comms import message_controls
-from motors import *
-from sensors import *
+from motors import motor_controls
+from sensors import sensorControl
 
 #Grab all the config variables
-from config import *
-from sensors.controls import sensorControl
 
+
+
+# Read config file
+config = ConfigParser.RawConfigParser()
+config.read('config.cfg')
 
 #Setup Logging
-logfile = logging.FileHandler(LOG_FILENAME)
+logfile = logging.FileHandler(config.get('logging', 'logFilename'))
 LEVELS = {'debug': logging.DEBUG,
           'info': logging.INFO,
           'warning': logging.WARNING,
           'error': logging.ERROR,
           'critical': logging.CRITICAL}
-level = LEVELS.get(logging_level, logging.NOTSET)
+level = LEVELS.get(config.get('logging', 'loggingLevel'), logging.NOTSET)
 logging.basicConfig(level=level)
 logger = logging.getLogger('gumstix.app')
 logger.info('Logging Started')
+
+# Parse some of the config data to local variables
+RID = config.getint('rover', 'RID')
+hostIp = config.get('connection', 'hostIp')
+hostPort = config.getint('connection', 'hostPort')
+queueCommands = config.get('connection', 'queueCommands')
+queueSensors = config.get('connection', 'queueSensors')
+queueLog = config.get('connection', 'queueLog')
 
 def start():
     print '####################'
@@ -50,23 +62,28 @@ def start():
 
     ##Start stomp connection
     logger.info('Starting Stomp')
-    conn = stomp.Connection([(host_ip, host_port)]) # Who to connect to
+    conn = stomp.Connection([(hostIp, hostPort)]) # Who to connect to
     conn.set_listener('', Listener()) # Rover specific listener 
     conn.start()
     conn.connect(wait=True)
-    conn.subscribe(destination=queue_commands, ack='auto') # Auto get commands
+    conn.subscribe(destination=queueCommands, ack='auto') # Auto get commands
     
     ##Setup motors class
     logger.info('Configuring Motors')
-    motors = motor_controls(wheel_base, max_angle, half_length, diff_inc, servo_mid, servo_dif)
+    motors = motor_controls(config.get('motors', 'wheelBase'), 
+                            config.get('motors', 'maxAngle'), 
+                            config.get('motors', 'halfLength'), 
+                            config.get('motors', 'diffInc'), 
+                            config.get('motors', 'servoMid'), 
+                            config.get('motors', 'servoDif'))
     
     
     ##Setup sensor threads 
-    if sensors_enabled:
+    if config.getboolean('sensors', 'enabled'):
         logger.info('Configuring Sensors')
-        sensorControl(sensorsConfig)
+        sensorControl(ast.literal_eval(config.get('sensors', 'config')))
         # Start data collection timer
-        st = threading.Timer(sensors_collect, sensors_data_collect)
+        st = threading.Timer(config.get('sensors', 'timer'), sensors_data_collect(config.get('sensors', 'timer')))
         st.start()
     
     
@@ -82,7 +99,7 @@ def start():
             
         
         
-    conn.send("Rover '%s' Disconnecting" % RID, destination=queue_log)
+    conn.send("Rover '%s' Disconnecting" % RID, destination=queueLog)
     st.stop()
     conn.disconnect()
 
@@ -111,21 +128,21 @@ def command_handle(command):
         else:
             logger.warning('Unrecognised command \t' + str(functionName))
             errorMessage = "Command Not Recognised: %s" % functionName
-            conn.send(errorMessage, destination=queue_log)
+            conn.send(errorMessage, destination=queueLog)
                 
     except KeyError:
         logger.error('Command Error \t Key Error')
-        conn.send("Command - Key Error:", destination=queue_log)
+        conn.send("Command - Key Error:", destination=queueLog)
     except TypeError:
         logger.error('Command Error \t Type Error')   
-        conn.send("Command - Type Error:", destination=queue_log) 
+        conn.send("Command - Type Error:", destination=queueLog) 
 
-def sensors_data_collect():    
+def sensors_data_collect(sensors_collect):    
     message = sensorControl.getAllData(self)
     logger.info('Message Compiled from sensors \n \t' + str(message))
     m = message_controls('sensor_data', message)
     message = m.serialize()
-    conn.send(message, destination=queue_sensors)
+    conn.send(message, destination=queueSensors)
     st = threading.Timer(sensors_collect, sensors_data_collect)
     st.start()
 
@@ -137,7 +154,7 @@ class Listener(stomp.ConnectionListener):
         
     def on_connected(self, headers, body):
         #Send message to epc
-        conn.send("Rover '%s' Connected" % RID, destination=queue_log) 
+        conn.send("Rover '%s' Connected" % RID, destination=queueLog) 
 
     def on_disconnected(self):
         pass
@@ -147,7 +164,7 @@ class Listener(stomp.ConnectionListener):
 
     def on_error(self, headers, body):
         errorMessage = 'STOMP ERROR: %s' %body 
-        conn.send(errorMessage, destination=queue_log)  
+        conn.send(errorMessage, destination=queueLog)  
     
     def on_send(self, headers, body):
         pass
@@ -166,10 +183,10 @@ class Listener(stomp.ConnectionListener):
                            
         except KeyError:
             logger.error('Message Error \t Key Error')
-            conn.send("STOMP Message - Key Error: ", destination=queue_log)
+            conn.send("STOMP Message - Key Error: ", destination=queueLog)
         except TypeError:
             logger.error('Message Error \t Type Error')   
-            conn.send("STOMP Message - Type Error: ", destination=queue_log)  
+            conn.send("STOMP Message - Type Error: ", destination=queueLog)  
              
 
 if __name__ == '__main__':

@@ -7,7 +7,7 @@ LOG_FILENAME = 'log.out'
 
 
 #Connection details
-host_ip = '10.42.43.1ge'
+host_ip = '10.42.43.1'
 host_port = 61613
 queue_commands = '/topic/commands'
 queue_sensors = '/topic/sense'

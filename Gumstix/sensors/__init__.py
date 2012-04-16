@@ -1,5 +1,3 @@
-import controls, sensor
+import controls
 
-sensor_controls = controls.sensor_controls
 sensorControl = controls.sensorControl
-sensor_obj = sensor.sensor
